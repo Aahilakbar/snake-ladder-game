@@ -620,7 +620,32 @@
     </aside>
   </main>
 
-  <script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+    import {
+      getDatabase,
+      ref,
+      get,
+      set,
+      update,
+      onValue,
+      onDisconnect,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCCn-tpXkNDllbLyDzK_deRl_Li7B15DdE",
+      authDomain: "snake-ladder-game-ee59e.firebaseapp.com",
+      databaseURL: "https://snake-ladder-game-ee59e-default-rtdb.firebaseio.com",
+      projectId: "snake-ladder-game-ee59e",
+      storageBucket: "snake-ladder-game-ee59e.firebasestorage.app",
+      messagingSenderId: "633777073940",
+      appId: "1:633777073940:web:f4d996bafc3edb7695dc01",
+      measurementId: "G-QN7D10Z1WG"
+    };
+
+    const firebaseApp = initializeApp(firebaseConfig);
+    const database = getDatabase(firebaseApp);
     const board = document.getElementById("board");
     const routeLayer = document.getElementById("routeLayer");
     const dice = document.getElementById("dice");
@@ -979,24 +1004,11 @@
       renderPlayers();
     }
 
-    async function apiRequest(path, options = {}) {
-      const response = await fetch(path, {
-        headers: { "Content-Type": "application/json" },
-        ...options
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || "Something went wrong. Please try again.");
-      return payload;
-    }
-
     async function createOnlineRoom(roomType) {
       startError.textContent = "";
       try {
-        const payload = await apiRequest("/api/rooms", {
-          method: "POST",
-          body: JSON.stringify({ type: roomType })
-        });
-        enterOnlineRoom(payload.room, 0);
+        const room = await createFirebaseRoom(roomType);
+        enterOnlineRoom(room, 0);
       } catch (error) {
         startError.textContent = error.message;
       }
@@ -1011,8 +1023,8 @@
       }
 
       try {
-        const payload = await apiRequest(`/api/rooms/${id}/join`, { method: "POST" });
-        enterOnlineRoom(payload.room, 1);
+        const room = await joinFirebaseRoom(id);
+        enterOnlineRoom(room, 1);
       } catch (error) {
         startError.textContent = error.message;
       }
@@ -1032,11 +1044,11 @@
       roomCode.textContent = room.id;
       roomTitle.textContent = `${room.type === "private" ? "Private" : "Public"} Room`;
       connectToRoom();
-      applyOnlineState(room.state, false);
+      applyOnlineRoom(room, false);
     }
 
     function closeOnlineConnection(clearRoom = true) {
-      if (online.source) online.source.close();
+      if (online.source) online.source();
       online.source = null;
       if (clearRoom) {
         online.roomId = "";
@@ -1047,13 +1059,20 @@
 
     function connectToRoom() {
       closeOnlineConnection(false);
-      online.source = new EventSource(`/api/rooms/${online.roomId}/events?player=${online.playerIndex}`);
-      online.source.addEventListener("message", event => {
-        const payload = JSON.parse(event.data);
-        if (payload.type === "state") applyOnlineState(payload.room.state, true);
-      });
-      online.source.addEventListener("error", () => {
-        roomStatus.textContent = "Connection interrupted. Trying to reconnect...";
+      const roomPath = `rooms/${online.roomId}`;
+      const roomReference = ref(database, roomPath);
+      const connectedReference = ref(database, `${roomPath}/connected/${online.playerIndex}`);
+
+      set(connectedReference, true);
+      onDisconnect(connectedReference).set(false);
+      onDisconnect(ref(database, `${roomPath}/state/disconnected`)).set(true);
+
+      online.source = onValue(roomReference, snapshot => {
+        if (!snapshot.exists()) {
+          roomStatus.textContent = "Room no longer exists.";
+          return;
+        }
+        applyOnlineRoom(snapshot.val(), true);
       });
     }
 
@@ -1062,10 +1081,33 @@
       isMoving = true;
       renderPlayers();
       try {
-        await apiRequest(`/api/rooms/${online.roomId}/roll`, {
-          method: "POST",
-          body: JSON.stringify({ playerIndex: online.playerIndex })
-        });
+        const roomReference = ref(database, `rooms/${online.roomId}`);
+        const snapshot = await get(roomReference);
+        if (!snapshot.exists()) throw new Error("Room no longer exists.");
+
+        const room = snapshot.val();
+        const state = normalizeOnlineState(room);
+        if (state.connectedPlayers < 2) throw new Error("Wait for an opponent before rolling.");
+        if (state.winner !== null) throw new Error("The game is already over.");
+        if (online.playerIndex !== state.currentPlayer) throw new Error("It is not your turn.");
+
+        const roll = Math.floor(Math.random() * 6) + 1;
+        const move = computeMove(state.players[online.playerIndex], roll);
+        const nextPlayer = online.playerIndex === 0 ? 1 : 0;
+        const updatePayload = {
+          "state/diceResult": roll,
+          "state/lastMove": { ...move, playerIndex: online.playerIndex },
+          "state/updatedAt": serverTimestamp(),
+          [`state/players/${online.playerIndex}`]: move.final
+        };
+
+        if (move.winner) {
+          updatePayload["state/winner"] = online.playerIndex;
+        } else {
+          updatePayload["state/currentPlayer"] = nextPlayer;
+        }
+
+        await update(roomReference, updatePayload);
       } catch (error) {
         messageText.textContent = error.message;
         isMoving = false;
@@ -1075,16 +1117,16 @@
 
     async function requestOnlineRestart() {
       try {
-        await apiRequest(`/api/rooms/${online.roomId}/restart`, {
-          method: "POST",
-          body: JSON.stringify({ playerIndex: online.playerIndex })
+        await update(ref(database, `rooms/${online.roomId}`), {
+          state: createInitialOnlineState()
         });
       } catch (error) {
         messageText.textContent = error.message;
       }
     }
 
-    async function applyOnlineState(state, animate) {
+    async function applyOnlineRoom(room, animate) {
+      const state = normalizeOnlineState(room);
       const previous = players.map(player => player.position);
       online.connectedPlayers = state.connectedPlayers;
       currentPlayer = state.currentPlayer;
@@ -1122,6 +1164,84 @@
       }
 
       renderPlayers();
+    }
+
+    function createInitialOnlineState() {
+      return {
+        players: [1, 1],
+        currentPlayer: 0,
+        diceResult: null,
+        winner: null,
+        lastMove: null,
+        disconnected: false,
+        updatedAt: serverTimestamp()
+      };
+    }
+
+    function normalizeOnlineState(room) {
+      const state = room.state || createInitialOnlineState();
+      const connectedPlayers = Object.values(room.connected || {}).filter(Boolean).length;
+      const playerSlots = room.players || { 0: true, 1: false };
+      return {
+        players: Array.isArray(state.players) ? state.players : [1, 1],
+        currentPlayer: Number(state.currentPlayer || 0),
+        diceResult: state.diceResult || null,
+        winner: state.winner === 0 || state.winner === 1 ? state.winner : null,
+        lastMove: state.lastMove || null,
+        disconnected: Boolean(state.disconnected && playerSlots[1]),
+        connectedPlayers
+      };
+    }
+
+    async function createFirebaseRoom(roomType) {
+      let id = generateGameId();
+      let roomReference = ref(database, `rooms/${id}`);
+      let snapshot = await get(roomReference);
+
+      while (snapshot.exists()) {
+        id = generateGameId();
+        roomReference = ref(database, `rooms/${id}`);
+        snapshot = await get(roomReference);
+      }
+
+      const room = {
+        id,
+        type: roomType === "private" ? "private" : "public",
+        players: { 0: true, 1: false },
+        connected: { 0: true },
+        state: createInitialOnlineState(),
+        createdAt: serverTimestamp()
+      };
+
+      await set(roomReference, room);
+      return room;
+    }
+
+    async function joinFirebaseRoom(id) {
+      const roomReference = ref(database, `rooms/${id}`);
+      const snapshot = await get(roomReference);
+      if (!snapshot.exists()) throw new Error("Game ID not found.");
+
+      const room = snapshot.val();
+      if (room.players && room.players[1]) throw new Error("This game is already full.");
+
+      await update(roomReference, {
+        "players/1": true,
+        "connected/1": true,
+        "state/disconnected": false,
+        "state/updatedAt": serverTimestamp()
+      });
+
+      return {
+        ...room,
+        players: { ...(room.players || {}), 1: true },
+        connected: { ...(room.connected || {}), 1: true },
+        state: { ...(room.state || createInitialOnlineState()), disconnected: false }
+      };
+    }
+
+    function generateGameId() {
+      return `GAME-${Math.floor(1000 + Math.random() * 9000)}`;
     }
 
     function getRoomStatus(state) {
