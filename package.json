@@ -1,0 +1,14 @@
+{
+  "name": "snake-ladder-game",
+  "version": "1.0.0",
+  "description": "Online Snake and Ladder game with local multiplayer, bot mode, and room-based online play.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}
