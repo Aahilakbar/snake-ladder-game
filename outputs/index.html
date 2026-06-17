@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Snake and Ladder Online</title>
+  <style>
+    :root {
+      --ink: #19202a;
+      --muted: #5d6878;
+      --panel: rgba(255, 255, 255, 0.9);
+      --line: rgba(22, 31, 45, 0.14);
+      --player-one: #ec3f62;
+      --player-two: #236dff;
+      --gold: #ffba34;
+      --green: #2fbb75;
+      --danger: #d9344e;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      background:
+        radial-gradient(circle at 15% 12%, rgba(255, 214, 79, 0.42), transparent 24rem),
+        radial-gradient(circle at 88% 16%, rgba(57, 196, 136, 0.34), transparent 22rem),
+        linear-gradient(135deg, #fff9d9 0%, #c5efff 48%, #ffd5df 100%);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .app,
+    .start-screen {
+      width: min(1180px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(310px, auto) 350px;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .start-screen {
+      display: grid;
+      place-items: center;
+    }
+
+    .start-card {
+      width: min(760px, 100%);
+      display: grid;
+      gap: 18px;
+      padding: clamp(20px, 4vw, 34px);
+      border: 1px solid rgba(255, 255, 255, 0.76);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 24px 65px rgba(38, 47, 72, 0.2);
+      backdrop-filter: blur(10px);
+    }
+
+    .start-card h1,
+    .game-area h1 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 4rem);
+      line-height: 1;
+      text-align: center;
+      letter-spacing: 0;
+    }
+
+    .start-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    .mode-grid,
+    .online-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .online-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .choice-card {
+      min-height: 116px;
+      display: grid;
+      align-content: center;
+      gap: 8px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.76);
+      color: var(--ink);
+      text-align: left;
+      cursor: pointer;
+      transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+    }
+
+    .choice-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(25, 32, 42, 0.3);
+      box-shadow: 0 14px 24px rgba(38, 47, 72, 0.14);
+    }
+
+    .choice-card strong {
+      font-size: 1.05rem;
+    }
+
+    .choice-card span {
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.35;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+    }
+
+    input {
+      width: 100%;
+      min-height: 48px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 14px;
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.82);
+      font: inherit;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .game-area {
+      display: grid;
+      justify-items: center;
+      gap: 16px;
+    }
+
+    .board-wrap {
+      position: relative;
+      width: min(92vw, 640px);
+      aspect-ratio: 1;
+      padding: 10px;
+      border: 5px solid #1f2733;
+      border-radius: 8px;
+      background: #fffdf0;
+      box-shadow: 0 22px 55px rgba(38, 47, 72, 0.22);
+    }
+
+    .board {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      width: 100%;
+      height: 100%;
+      grid-template-columns: repeat(10, 1fr);
+      grid-template-rows: repeat(10, 1fr);
+      overflow: hidden;
+      border-radius: 4px;
+    }
+
+    .cell {
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-end;
+      padding: clamp(3px, 0.7vw, 8px);
+      border: 1px solid var(--line);
+      font-weight: 800;
+      font-size: clamp(0.68rem, 1.65vw, 1rem);
+      color: rgba(25, 32, 42, 0.76);
+    }
+
+    .cell:nth-child(4n + 1) { background: #ffe06e; }
+    .cell:nth-child(4n + 2) { background: #91e6a9; }
+    .cell:nth-child(4n + 3) { background: #8ed8ff; }
+    .cell:nth-child(4n + 4) { background: #ff9eb3; }
+
+    .cell[data-number="100"] {
+      color: #fff;
+      background: linear-gradient(135deg, #ff6a00, #ffce2f);
+    }
+
+    .cell-number {
+      position: relative;
+      z-index: 2;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.42);
+    }
+
+    .token-stack {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      pointer-events: none;
+    }
+
+    .player {
+      width: clamp(18px, 4.4vw, 30px);
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border: 3px solid #fff;
+      border-radius: 50%;
+      color: #fff;
+      font-size: clamp(0.67rem, 1.8vw, 0.95rem);
+      font-weight: 900;
+      box-shadow: 0 5px 10px rgba(10, 18, 30, 0.28);
+      transition: transform 180ms ease;
+    }
+
+    .player.p1 { background: var(--player-one); }
+    .player.p2 { background: var(--player-two); }
+    .player.active {
+      outline: 3px solid rgba(255, 255, 255, 0.82);
+      transform: translateY(-5px) scale(1.08);
+    }
+    .player.hop {
+      animation: hop 220ms ease;
+    }
+
+    .route-layer {
+      position: absolute;
+      inset: 10px;
+      z-index: 2;
+      width: calc(100% - 20px);
+      height: calc(100% - 20px);
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    .snake-path {
+      fill: none;
+      stroke: #7d2bc2;
+      stroke-width: 2.15;
+      stroke-linecap: round;
+      filter: drop-shadow(0 1px 1px rgba(20, 20, 20, 0.35));
+    }
+
+    .snake-head {
+      fill: #7d2bc2;
+      stroke: #fff;
+      stroke-width: 0.6;
+    }
+
+    .snake-eye {
+      fill: #fff;
+    }
+
+    .ladder-rail {
+      stroke: #8a4d1d;
+      stroke-width: 1.6;
+      stroke-linecap: round;
+      filter: drop-shadow(0 1px 1px rgba(20, 20, 20, 0.28));
+    }
+
+    .ladder-rung {
+      stroke: #ffd15c;
+      stroke-width: 1.1;
+      stroke-linecap: round;
+    }
+
+    .panel {
+      display: grid;
+      gap: 16px;
+      padding: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 18px 38px rgba(38, 47, 72, 0.18);
+      backdrop-filter: blur(10px);
+    }
+
+    .status,
+    .room-box {
+      display: grid;
+      gap: 6px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .status {
+      min-height: 72px;
+      align-content: center;
+    }
+
+    .status strong,
+    .room-box strong {
+      font-size: 1.15rem;
+    }
+
+    .status span,
+    .room-box span {
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .room-code {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 4px;
+      padding: 10px;
+      border-radius: 8px;
+      background: #1f2733;
+      color: #fff;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .dice-row {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .dice {
+      width: 92px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border: 4px solid #1f2733;
+      border-radius: 8px;
+      background: #fff;
+      color: #1f2733;
+      font-size: 2.7rem;
+      font-weight: 900;
+      box-shadow: inset 0 -8px 0 rgba(31, 39, 51, 0.08);
+    }
+
+    .dice.rolling {
+      animation: diceRoll 520ms ease;
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .button-row.three {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    button {
+      min-height: 48px;
+      border: 0;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 18px rgba(31, 39, 51, 0.2);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.62;
+    }
+
+    .primary,
+    #rollBtn {
+      background: linear-gradient(135deg, #ff416c, #ff8a32);
+    }
+
+    .secondary,
+    #restartBtn {
+      background: linear-gradient(135deg, #236dff, #2fbb75);
+    }
+
+    .dark {
+      background: linear-gradient(135deg, #1f2733, #46576d);
+    }
+
+    .danger {
+      background: linear-gradient(135deg, #d9344e, #ff7f32);
+    }
+
+    .small-btn {
+      min-height: 34px;
+      padding: 0 10px;
+      font-size: 0.82rem;
+      border-radius: 6px;
+    }
+
+    .players {
+      display: grid;
+      gap: 10px;
+    }
+
+    .player-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.7);
+      font-weight: 800;
+    }
+
+    .badge {
+      width: 28px;
+      aspect-ratio: 1;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #fff;
+      font-size: 0.82rem;
+      margin-right: 8px;
+    }
+
+    .badge.p1 { background: var(--player-one); }
+    .badge.p2 { background: var(--player-two); }
+
+    .legend,
+    .error {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.93rem;
+      line-height: 1.45;
+    }
+
+    .error {
+      min-height: 20px;
+      color: var(--danger);
+      font-weight: 800;
+      text-align: center;
+    }
+
+    @keyframes diceRoll {
+      0% { transform: rotate(0deg) scale(1); }
+      30% { transform: rotate(18deg) scale(1.08); }
+      58% { transform: rotate(-15deg) scale(0.94); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+
+    @keyframes hop {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-10px) scale(1.08); }
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+        padding: 18px;
+      }
+
+      .panel {
+        width: min(92vw, 640px);
+        justify-self: center;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .mode-grid,
+      .online-grid,
+      .form-row,
+      .button-row,
+      .button-row.three {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .app,
+      .start-screen {
+        padding: 12px;
+        gap: 16px;
+      }
+
+      .board-wrap {
+        width: min(96vw, 430px);
+        padding: 6px;
+        border-width: 3px;
+      }
+
+      .route-layer {
+        inset: 6px;
+        width: calc(100% - 12px);
+        height: calc(100% - 12px);
+      }
+
+      .panel {
+        width: min(96vw, 430px);
+        padding: 14px;
+      }
+
+      .dice-row {
+        grid-template-columns: 76px 1fr;
+      }
+
+      .dice {
+        width: 76px;
+        font-size: 2.2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <section class="start-screen" id="startScreen">
+    <div class="start-card">
+      <h1>Snake and Ladder</h1>
+      <p>Choose a mode, then race to square 100. The colorful board and classic rules stay the same.</p>
+
+      <div id="modeScreen">
+        <div class="mode-grid">
+          <button class="choice-card" type="button" data-mode="local">
+            <strong>Local Multiplayer</strong>
+            <span>Two players take turns on the same device.</span>
+          </button>
+          <button class="choice-card" type="button" data-mode="bot">
+            <strong>Play With Bot</strong>
+            <span>You play as Player 1. The bot rolls automatically as Player 2.</span>
+          </button>
+          <button class="choice-card" type="button" data-mode="online-menu">
+            <strong>Online Multiplayer</strong>
+            <span>Create or join a public/private room using a Game ID.</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="onlineScreen" class="hidden">
+        <div class="online-grid">
+          <button class="choice-card" type="button" id="createPublicBtn">
+            <strong>Create Public Game</strong>
+            <span>Anyone with room access can join as Player 2.</span>
+          </button>
+          <button class="choice-card" type="button" id="createPrivateBtn">
+            <strong>Create Private Game</strong>
+            <span>Generate a Game ID to share with a friend.</span>
+          </button>
+        </div>
+        <div class="form-row" style="margin-top: 12px;">
+          <input id="joinGameInput" type="text" placeholder="GAME-4821" maxlength="9" aria-label="Game ID" />
+          <button class="secondary" id="joinGameBtn" type="button">Join Game</button>
+        </div>
+        <p class="error" id="startError"></p>
+        <button class="dark" id="backToModesBtn" type="button">Back</button>
+      </div>
+    </div>
+  </section>
+
+  <main class="app hidden" id="gameApp">
+    <section class="game-area" aria-label="Snake and Ladder board">
+      <h1>Snake and Ladder</h1>
+      <div class="board-wrap">
+        <div class="board" id="board"></div>
+        <svg class="route-layer" id="routeLayer" viewBox="0 0 100 100" aria-hidden="true"></svg>
+      </div>
+    </section>
+
+    <aside class="panel" aria-label="Game controls">
+      <div class="status" aria-live="polite">
+        <strong id="turnText">Choose a game mode</strong>
+        <span id="messageText">Start a game to roll the dice.</span>
+      </div>
+
+      <div class="room-box hidden" id="roomBox">
+        <strong id="roomTitle">Online Room</strong>
+        <span id="roomStatus">Connecting...</span>
+        <div class="room-code">
+          <span id="roomCode">GAME-0000</span>
+          <button class="small-btn secondary" id="copyRoomBtn" type="button">Copy</button>
+        </div>
+      </div>
+
+      <div class="dice-row">
+        <div class="dice" id="dice" aria-label="Dice result">-</div>
+        <div>
+          <p class="legend"><strong>Dice result:</strong> <span id="diceText">Waiting...</span></p>
+          <p class="legend" id="modeText">Select a mode to begin.</p>
+        </div>
+      </div>
+
+      <div class="button-row three">
+        <button id="rollBtn" type="button">Roll Dice</button>
+        <button id="restartBtn" type="button">Restart</button>
+        <button class="dark" id="changeModeBtn" type="button">Modes</button>
+      </div>
+
+      <div class="players">
+        <div class="player-card">
+          <span><span class="badge p1">1</span><span id="p1Label">Player 1</span></span>
+          <span id="p1Pos">Square 1</span>
+        </div>
+        <div class="player-card">
+          <span><span class="badge p2">2</span><span id="p2Label">Player 2</span></span>
+          <span id="p2Pos">Square 1</span>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    const board = document.getElementById("board");
+    const routeLayer = document.getElementById("routeLayer");
+    const dice = document.getElementById("dice");
+    const diceText = document.getElementById("diceText");
+    const turnText = document.getElementById("turnText");
+    const messageText = document.getElementById("messageText");
+    const modeText = document.getElementById("modeText");
+    const rollBtn = document.getElementById("rollBtn");
+    const restartBtn = document.getElementById("restartBtn");
+    const changeModeBtn = document.getElementById("changeModeBtn");
+    const p1Pos = document.getElementById("p1Pos");
+    const p2Pos = document.getElementById("p2Pos");
+    const p1Label = document.getElementById("p1Label");
+    const p2Label = document.getElementById("p2Label");
+    const startScreen = document.getElementById("startScreen");
+    const modeScreen = document.getElementById("modeScreen");
+    const onlineScreen = document.getElementById("onlineScreen");
+    const gameApp = document.getElementById("gameApp");
+    const startError = document.getElementById("startError");
+    const roomBox = document.getElementById("roomBox");
+    const roomTitle = document.getElementById("roomTitle");
+    const roomStatus = document.getElementById("roomStatus");
+    const roomCode = document.getElementById("roomCode");
+    const copyRoomBtn = document.getElementById("copyRoomBtn");
+    const joinGameInput = document.getElementById("joinGameInput");
+
+    const ladders = {
+      3: 22,
+      8: 30,
+      28: 84,
+      58: 77,
+      75: 86,
+      80: 99
+    };
+
+    const snakes = {
+      17: 7,
+      52: 29,
+      57: 40,
+      62: 41,
+      88: 18,
+      95: 71,
+      97: 79
+    };
+
+    const players = [
+      { id: 1, position: 1, className: "p1" },
+      { id: 2, position: 1, className: "p2" }
+    ];
+
+    const online = {
+      roomId: "",
+      playerIndex: null,
+      source: null,
+      connectedPlayers: 0,
+      roomType: ""
+    };
+
+    let mode = "menu";
+    let currentPlayer = 0;
+    let isMoving = false;
+    let gameOver = false;
+    let botTimer = null;
+
+    function wait(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function getCellLocation(number) {
+      const rowFromBottom = Math.floor((number - 1) / 10);
+      const row = 9 - rowFromBottom;
+      const col = rowFromBottom % 2 === 0
+        ? (number - 1) % 10
+        : 9 - ((number - 1) % 10);
+      return { row, col };
+    }
+
+    function getCellCenter(number) {
+      const { row, col } = getCellLocation(number);
+      return {
+        x: col * 10 + 5,
+        y: row * 10 + 5
+      };
+    }
+
+    function createBoard() {
+      board.innerHTML = "";
+
+      for (let displayIndex = 0; displayIndex < 100; displayIndex++) {
+        const visualRow = Math.floor(displayIndex / 10);
+        const visualCol = displayIndex % 10;
+        const rowFromBottom = 9 - visualRow;
+        const number = rowFromBottom % 2 === 0
+          ? rowFromBottom * 10 + visualCol + 1
+          : rowFromBottom * 10 + (10 - visualCol);
+
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.dataset.number = number;
+        cell.innerHTML = `<span class="cell-number">${number}</span><div class="token-stack"></div>`;
+        board.appendChild(cell);
+      }
+    }
+
+    function makeSvgElement(tag, attributes) {
+      const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
+      Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, value));
+      return element;
+    }
+
+    function drawLadder(start, end) {
+      const a = getCellCenter(start);
+      const b = getCellCenter(end);
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const length = Math.hypot(dx, dy) || 1;
+      const offsetX = (-dy / length) * 1.7;
+      const offsetY = (dx / length) * 1.7;
+
+      routeLayer.append(
+        makeSvgElement("line", { x1: a.x - offsetX, y1: a.y - offsetY, x2: b.x - offsetX, y2: b.y - offsetY, class: "ladder-rail" }),
+        makeSvgElement("line", { x1: a.x + offsetX, y1: a.y + offsetY, x2: b.x + offsetX, y2: b.y + offsetY, class: "ladder-rail" })
+      );
+
+      for (let step = 0.12; step < 0.95; step += 0.13) {
+        const cx = a.x + dx * step;
+        const cy = a.y + dy * step;
+        routeLayer.appendChild(makeSvgElement("line", {
+          x1: cx - offsetX * 1.2,
+          y1: cy - offsetY * 1.2,
+          x2: cx + offsetX * 1.2,
+          y2: cy + offsetY * 1.2,
+          class: "ladder-rung"
+        }));
+      }
+    }
+
+    function drawSnake(start, end) {
+      const a = getCellCenter(start);
+      const b = getCellCenter(end);
+      const midX = (a.x + b.x) / 2;
+      const midY = (a.y + b.y) / 2;
+      const bend = start % 2 === 0 ? 8 : -8;
+      const path = `M ${a.x} ${a.y} C ${midX + bend} ${a.y + 2}, ${midX - bend} ${b.y - 2}, ${b.x} ${b.y}`;
+
+      routeLayer.appendChild(makeSvgElement("path", { d: path, class: "snake-path" }));
+      routeLayer.appendChild(makeSvgElement("circle", { cx: a.x, cy: a.y, r: 2.2, class: "snake-head" }));
+      routeLayer.appendChild(makeSvgElement("circle", { cx: a.x - 0.8, cy: a.y - 0.5, r: 0.32, class: "snake-eye" }));
+      routeLayer.appendChild(makeSvgElement("circle", { cx: a.x + 0.8, cy: a.y - 0.5, r: 0.32, class: "snake-eye" }));
+    }
+
+    function drawRoutes() {
+      routeLayer.innerHTML = "";
+      Object.entries(ladders).forEach(([start, end]) => drawLadder(Number(start), end));
+      Object.entries(snakes).forEach(([start, end]) => drawSnake(Number(start), end));
+    }
+
+    function renderPlayers() {
+      document.querySelectorAll(".token-stack").forEach(stack => stack.innerHTML = "");
+
+      players.forEach((player, index) => {
+        const cell = document.querySelector(`.cell[data-number="${player.position}"] .token-stack`);
+        const token = document.createElement("div");
+        token.className = `player ${player.className}${index === currentPlayer && !gameOver ? " active" : ""}`;
+        token.textContent = player.id;
+        token.setAttribute("aria-label", `Player ${player.id}`);
+        cell.appendChild(token);
+      });
+
+      p1Pos.textContent = `Square ${players[0].position}`;
+      p2Pos.textContent = `Square ${players[1].position}`;
+      updateRollButton();
+    }
+
+    async function animatePlayerTo(player, target) {
+      const direction = target > player.position ? 1 : -1;
+
+      while (player.position !== target) {
+        player.position += direction;
+        renderPlayers();
+        const token = document.querySelector(`.player.${player.className}`);
+        token.classList.add("hop");
+        await wait(170);
+      }
+    }
+
+    async function animateDice(roll) {
+      dice.classList.add("rolling");
+      for (let i = 0; i < 7; i++) {
+        dice.textContent = Math.floor(Math.random() * 6) + 1;
+        await wait(55);
+      }
+      dice.classList.remove("rolling");
+      dice.textContent = roll;
+      diceText.textContent = roll;
+    }
+
+    function computeMove(startPosition, roll) {
+      const proposedMove = startPosition + roll;
+      if (proposedMove > 100) {
+        return { start: startPosition, rolled: roll, land: startPosition, final: startPosition, effect: "overshoot", winner: false };
+      }
+
+      let final = proposedMove;
+      let effect = "normal";
+
+      if (ladders[proposedMove]) {
+        final = ladders[proposedMove];
+        effect = "ladder";
+      } else if (snakes[proposedMove]) {
+        final = snakes[proposedMove];
+        effect = "snake";
+      }
+
+      return { start: startPosition, rolled: roll, land: proposedMove, final, effect, winner: final === 100 };
+    }
+
+    async function applyMove(playerIndex, move) {
+      const player = players[playerIndex];
+      await animateDice(move.rolled);
+
+      if (move.effect === "overshoot") {
+        messageText.textContent = `Player ${player.id} needs ${100 - player.position} or less to finish.`;
+        return;
+      }
+
+      turnText.textContent = `Player ${player.id} rolled ${move.rolled}`;
+      messageText.textContent = `Player ${player.id} moves to square ${move.land}.`;
+      await animatePlayerTo(player, move.land);
+
+      if (move.effect === "ladder") {
+        messageText.textContent = `Great climb! Player ${player.id} takes a ladder to ${move.final}.`;
+        await wait(300);
+        await animatePlayerTo(player, move.final);
+      } else if (move.effect === "snake") {
+        messageText.textContent = `Oh no! Player ${player.id} slides down to ${move.final}.`;
+        await wait(300);
+        await animatePlayerTo(player, move.final);
+      }
+    }
+
+    function resetBoardState() {
+      players.forEach(player => player.position = 1);
+      currentPlayer = 0;
+      isMoving = false;
+      gameOver = false;
+      dice.textContent = "-";
+      diceText.textContent = "Waiting...";
+      renderPlayers();
+    }
+
+    function showGame() {
+      startScreen.classList.add("hidden");
+      gameApp.classList.remove("hidden");
+    }
+
+    function showModes() {
+      clearTimeout(botTimer);
+      closeOnlineConnection();
+      mode = "menu";
+      gameApp.classList.add("hidden");
+      startScreen.classList.remove("hidden");
+      modeScreen.classList.remove("hidden");
+      onlineScreen.classList.add("hidden");
+      startError.textContent = "";
+      roomBox.classList.add("hidden");
+      resetBoardState();
+    }
+
+    function startLocalGame(selectedMode) {
+      closeOnlineConnection();
+      mode = selectedMode;
+      resetBoardState();
+      showGame();
+      roomBox.classList.add("hidden");
+      p1Label.textContent = "Player 1";
+      p2Label.textContent = mode === "bot" ? "Bot" : "Player 2";
+      modeText.textContent = mode === "bot" ? "Bot mode: Player 1 vs Bot." : "Local mode: two players on one device.";
+      turnText.textContent = "Player 1's turn";
+      messageText.textContent = mode === "bot" ? "You start first. The bot will roll on its turn." : "Player 1 starts first.";
+      renderPlayers();
+    }
+
+    function switchTurn() {
+      currentPlayer = currentPlayer === 0 ? 1 : 0;
+      turnText.textContent = `${getPlayerName(currentPlayer)}'s turn`;
+      isMoving = false;
+      renderPlayers();
+      maybeStartBotTurn();
+    }
+
+    function getPlayerName(index) {
+      if (mode === "bot" && index === 1) return "Bot";
+      return `Player ${index + 1}`;
+    }
+
+    function updateRollButton() {
+      const waitingOnline = mode === "online" && online.connectedPlayers < 2;
+      const wrongOnlineTurn = mode === "online" && online.playerIndex !== currentPlayer;
+      const botTurn = mode === "bot" && currentPlayer === 1;
+      rollBtn.disabled = isMoving || gameOver || waitingOnline || wrongOnlineTurn || botTurn;
+    }
+
+    async function rollDice(forcedRoll) {
+      if (isMoving || gameOver) return;
+      if (mode === "online") {
+        await requestOnlineRoll();
+        return;
+      }
+      if (mode === "bot" && currentPlayer === 1 && forcedRoll === undefined) return;
+
+      isMoving = true;
+      renderPlayers();
+      const playerIndex = currentPlayer;
+      const roll = forcedRoll || Math.floor(Math.random() * 6) + 1;
+      const move = computeMove(players[playerIndex].position, roll);
+      await applyMove(playerIndex, move);
+
+      if (move.winner) {
+        finishGame(playerIndex);
+        return;
+      }
+
+      switchTurn();
+    }
+
+    function finishGame(playerIndex) {
+      gameOver = true;
+      isMoving = false;
+      turnText.textContent = `${getPlayerName(playerIndex)} wins!`;
+      messageText.textContent = "Game over. Restart to play again.";
+      renderPlayers();
+    }
+
+    function maybeStartBotTurn() {
+      clearTimeout(botTimer);
+      if (mode !== "bot" || currentPlayer !== 1 || gameOver) return;
+
+      messageText.textContent = "Bot is thinking...";
+      updateRollButton();
+      botTimer = setTimeout(() => {
+        const botRoll = Math.floor(Math.random() * 6) + 1;
+        rollDice(botRoll);
+      }, 900);
+    }
+
+    function restartGame() {
+      if (mode === "online") {
+        requestOnlineRestart();
+        return;
+      }
+
+      resetBoardState();
+      turnText.textContent = "Player 1's turn";
+      messageText.textContent = mode === "bot" ? "You start first. The bot will roll on its turn." : "Player 1 starts first.";
+      renderPlayers();
+    }
+
+    async function apiRequest(path, options = {}) {
+      const response = await fetch(path, {
+        headers: { "Content-Type": "application/json" },
+        ...options
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Something went wrong. Please try again.");
+      return payload;
+    }
+
+    async function createOnlineRoom(roomType) {
+      startError.textContent = "";
+      try {
+        const payload = await apiRequest("/api/rooms", {
+          method: "POST",
+          body: JSON.stringify({ type: roomType })
+        });
+        enterOnlineRoom(payload.room, 0);
+      } catch (error) {
+        startError.textContent = error.message;
+      }
+    }
+
+    async function joinOnlineRoom() {
+      startError.textContent = "";
+      const id = joinGameInput.value.trim().toUpperCase();
+      if (!/^GAME-\d{4}$/.test(id)) {
+        startError.textContent = "Enter a valid Game ID like GAME-4821.";
+        return;
+      }
+
+      try {
+        const payload = await apiRequest(`/api/rooms/${id}/join`, { method: "POST" });
+        enterOnlineRoom(payload.room, 1);
+      } catch (error) {
+        startError.textContent = error.message;
+      }
+    }
+
+    function enterOnlineRoom(room, playerIndex) {
+      mode = "online";
+      resetBoardState();
+      showGame();
+      p1Label.textContent = playerIndex === 0 ? "You" : "Host";
+      p2Label.textContent = playerIndex === 1 ? "You" : "Opponent";
+      modeText.textContent = "Online mode: only the current player can roll.";
+      roomBox.classList.remove("hidden");
+      online.roomId = room.id;
+      online.playerIndex = playerIndex;
+      online.roomType = room.type;
+      roomCode.textContent = room.id;
+      roomTitle.textContent = `${room.type === "private" ? "Private" : "Public"} Room`;
+      connectToRoom();
+      applyOnlineState(room.state, false);
+    }
+
+    function closeOnlineConnection(clearRoom = true) {
+      if (online.source) online.source.close();
+      online.source = null;
+      if (clearRoom) {
+        online.roomId = "";
+        online.playerIndex = null;
+        online.connectedPlayers = 0;
+      }
+    }
+
+    function connectToRoom() {
+      closeOnlineConnection(false);
+      online.source = new EventSource(`/api/rooms/${online.roomId}/events?player=${online.playerIndex}`);
+      online.source.addEventListener("message", event => {
+        const payload = JSON.parse(event.data);
+        if (payload.type === "state") applyOnlineState(payload.room.state, true);
+      });
+      online.source.addEventListener("error", () => {
+        roomStatus.textContent = "Connection interrupted. Trying to reconnect...";
+      });
+    }
+
+    async function requestOnlineRoll() {
+      if (isMoving || gameOver || online.playerIndex !== currentPlayer) return;
+      isMoving = true;
+      renderPlayers();
+      try {
+        await apiRequest(`/api/rooms/${online.roomId}/roll`, {
+          method: "POST",
+          body: JSON.stringify({ playerIndex: online.playerIndex })
+        });
+      } catch (error) {
+        messageText.textContent = error.message;
+        isMoving = false;
+        renderPlayers();
+      }
+    }
+
+    async function requestOnlineRestart() {
+      try {
+        await apiRequest(`/api/rooms/${online.roomId}/restart`, {
+          method: "POST",
+          body: JSON.stringify({ playerIndex: online.playerIndex })
+        });
+      } catch (error) {
+        messageText.textContent = error.message;
+      }
+    }
+
+    async function applyOnlineState(state, animate) {
+      const previous = players.map(player => player.position);
+      online.connectedPlayers = state.connectedPlayers;
+      currentPlayer = state.currentPlayer;
+      gameOver = state.winner !== null;
+      diceText.textContent = state.diceResult || "Waiting...";
+      dice.textContent = state.diceResult || "-";
+      roomStatus.textContent = getRoomStatus(state);
+
+      if (state.lastMove && animate && previous[state.lastMove.playerIndex] !== state.players[state.lastMove.playerIndex]) {
+        isMoving = true;
+        currentPlayer = state.lastMove.playerIndex;
+        players[state.lastMove.playerIndex].position = state.lastMove.start;
+        renderPlayers();
+        await applyMove(state.lastMove.playerIndex, state.lastMove);
+      }
+
+      players[0].position = state.players[0];
+      players[1].position = state.players[1];
+      currentPlayer = state.currentPlayer;
+      gameOver = state.winner !== null;
+      isMoving = false;
+
+      if (state.winner !== null) {
+        turnText.textContent = `Player ${state.winner + 1} wins!`;
+        messageText.textContent = "Game over. Restart to play again.";
+      } else if (state.disconnected) {
+        turnText.textContent = "Opponent disconnected";
+        messageText.textContent = "The room is still open, but the other player left.";
+      } else if (state.connectedPlayers < 2) {
+        turnText.textContent = "Waiting for opponent";
+        messageText.textContent = "Share the Game ID so Player 2 can join.";
+      } else {
+        turnText.textContent = online.playerIndex === state.currentPlayer ? "Your turn" : `Player ${state.currentPlayer + 1}'s turn`;
+        messageText.textContent = online.playerIndex === state.currentPlayer ? "Roll the dice." : "Waiting for the other player.";
+      }
+
+      renderPlayers();
+    }
+
+    function getRoomStatus(state) {
+      if (state.disconnected) return "Opponent disconnected";
+      if (state.connectedPlayers < 2) return "Waiting for opponent to join...";
+      return `Connected: ${state.connectedPlayers}/2 players`;
+    }
+
+    async function copyRoomId() {
+      try {
+        await navigator.clipboard.writeText(online.roomId);
+        roomStatus.textContent = "Game ID copied.";
+      } catch {
+        roomStatus.textContent = `Copy this Game ID: ${online.roomId}`;
+      }
+    }
+
+    document.querySelectorAll("[data-mode]").forEach(button => {
+      button.addEventListener("click", () => {
+        const selected = button.dataset.mode;
+        if (selected === "online-menu") {
+          modeScreen.classList.add("hidden");
+          onlineScreen.classList.remove("hidden");
+          startError.textContent = "";
+        } else {
+          startLocalGame(selected);
+        }
+      });
+    });
+
+    document.getElementById("backToModesBtn").addEventListener("click", () => {
+      onlineScreen.classList.add("hidden");
+      modeScreen.classList.remove("hidden");
+    });
+    document.getElementById("createPublicBtn").addEventListener("click", () => createOnlineRoom("public"));
+    document.getElementById("createPrivateBtn").addEventListener("click", () => createOnlineRoom("private"));
+    document.getElementById("joinGameBtn").addEventListener("click", joinOnlineRoom);
+    joinGameInput.addEventListener("input", () => joinGameInput.value = joinGameInput.value.toUpperCase());
+    rollBtn.addEventListener("click", () => rollDice());
+    restartBtn.addEventListener("click", restartGame);
+    changeModeBtn.addEventListener("click", showModes);
+    copyRoomBtn.addEventListener("click", copyRoomId);
+
+    createBoard();
+    drawRoutes();
+    renderPlayers();
+
+    // Lightweight hooks used by the local test runner. They do not affect normal play.
+    window.SnakeGameTest = {
+      startLocalGame,
+      rollDice,
+      restartGame,
+      computeMove,
+      setPositions(p1, p2) {
+        players[0].position = p1;
+        players[1].position = p2;
+        renderPlayers();
+      },
+      setCurrentPlayer(index) {
+        currentPlayer = index;
+        renderPlayers();
+      },
+      getState() {
+        return {
+          mode,
+          players: players.map(player => player.position),
+          currentPlayer,
+          gameOver,
+          rollDisabled: rollBtn.disabled,
+          turn: turnText.textContent,
+          message: messageText.textContent,
+          dice: diceText.textContent
+        };
+      }
+    };
+  </script>
+</body>
+</html>
