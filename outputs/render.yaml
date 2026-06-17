@@ -1,8 +1,0 @@
-services:
-  - type: web
-    name: snake-ladder-game
-    runtime: node
-    plan: free
-    buildCommand: echo "No build needed"
-    startCommand: node server.js
-    healthCheckPath: /api/health

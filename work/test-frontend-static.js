@@ -19,8 +19,12 @@ has("Bot is thinking...", "bot thinking state exists");
 has("const botRoll = Math.floor(Math.random() * 6) + 1;", "bot creates its own internal roll");
 has("rollDice(botRoll);", "bot can roll despite human click lock");
 has("navigator.clipboard.writeText", "copy game id flow exists");
-has("new EventSource", "real-time room stream exists");
-has("/api/rooms", "room API integration exists");
+has("firebase-database.js", "Firebase Realtime Database SDK is loaded");
+has("getDatabase", "Firebase database is initialized");
+has("onValue(roomReference", "real-time room listener exists");
+has("onDisconnect", "disconnect handling exists");
+has("createFirebaseRoom", "Firebase room creation exists");
+has("joinFirebaseRoom", "Firebase room join exists");
 has("requestOnlineRoll", "online roll request exists");
 has("requestOnlineRestart", "online restart request exists");
 has("computeMove", "shared movement rule function exists");
@@ -32,7 +36,7 @@ has("ladders[proposedMove]", "ladder rule is present");
 has("snakes[proposedMove]", "snake rule is present");
 
 assert.equal((html.match(/class="choice-card"/g) || []).length >= 5, true, "mode and online choices are rendered");
-assert.equal((html.match(/<script>/g) || []).length, 1, "game logic remains in one HTML script block");
-assert.equal((html.match(/https?:\/\//g) || []).length, 1, "no external browser libraries are loaded");
+assert.equal((html.match(/<script type="module">/g) || []).length, 1, "game logic remains in one module script block");
+assert.ok(html.includes("snake-ladder-game-ee59e"), "Firebase project config is present");
 
 console.log("Frontend static feature tests passed.");

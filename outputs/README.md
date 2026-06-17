@@ -18,14 +18,15 @@ work/
 
 ```powershell
 cd C:\Users\amsal\Documents\Codex\2026-06-17\prompt-create-a-complete-snake-and\outputs
-node server.js 8765
 ```
 
 Then open:
 
 ```text
-http://127.0.0.1:8765/index.html
+index.html
 ```
+
+Local and bot modes work from the file. Online mode uses Firebase Realtime Database.
 
 ## Test Locally
 
@@ -35,13 +36,11 @@ In a second terminal:
 cd C:\Users\amsal\Documents\Codex\2026-06-17\prompt-create-a-complete-snake-and
 node work\test-game-rules.js
 node work\test-frontend-static.js
-$env:TEST_BASE='http://127.0.0.1:8765'; node work\test-backend.js
 ```
 
 ## Deployment
 
-Deployment has not been performed. After approval, the easiest free path is usually:
+This version is ready for free GitHub Pages hosting. The `.github/workflows/pages.yml`
+workflow publishes the `outputs/` folder on every push to `main`.
 
-1. Use a Node-capable free host for `server.js`, or adapt the online layer to Firebase Realtime Database.
-2. Use a related site name such as `snake-ladder-game`.
-3. Verify online rooms after hosting before sharing the public URL.
+Online rooms use Firebase Realtime Database project `snake-ladder-game-ee59e`.
